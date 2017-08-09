@@ -2,13 +2,13 @@ from __future__ import print_function
 
 import logging
 import sys
-import re
 import itertools
 
 from linkwort import rules
 from linkwort import exceptions
 
 LOG = logging.getLogger(__name__)
+
 
 def pp_stripper(src):
     '''strip the trailing newline from all input lines'''
@@ -17,6 +17,7 @@ def pp_stripper(src):
             line = line[:-1]
 
         yield ln, line
+
 
 def pp_blankline(src):
     '''collapse multiple blank lines into a single blank line'''
@@ -30,6 +31,7 @@ def pp_blankline(src):
         yield ln, line
 
         last = line
+
 
 def pp_marker(src):
     '''remove text between lint:disable and lint:enable markers'''
@@ -47,6 +49,7 @@ def pp_marker(src):
 
             yield ln, line
 
+
 class MarkdownLint(object):
     def pipeline(self, src):
         for ln, line in pp_blankline(
@@ -61,7 +64,7 @@ class MarkdownLint(object):
             rulefunc = getattr(rules, rule)
             if not hasattr(rulefunc, 'ruleid'):
                 continue
-            if not tag in getattr(rulefunc, 'ruletags', []):
+            if tag not in getattr(rulefunc, 'ruletags', []):
                 continue
 
             rulefunc(filename, ln, data, ctx)
@@ -84,7 +87,7 @@ class MarkdownLint(object):
         for ln, line in self.pipeline(src):
             if fenced:
                 if line == 'fenced':
-                    fence = False
+                    fenced = False
                 continue
             else:
                 if line in ['```', '~~~']:
@@ -121,6 +124,7 @@ class MarkdownLint(object):
             violations.append(err)
 
         return violations
+
 
 if __name__ == '__main__':
     m = MarkdownLint()
