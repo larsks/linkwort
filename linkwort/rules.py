@@ -5,6 +5,7 @@ from linkwort.exceptions import RuleViolation
 
 re_reflink = re.compile(r'\[(?P<label>[^]]+)\]\s*\[(?P<ref>[^]]*)\]')
 re_reference = re.compile('\s*\[(?P<ref>[^]]+)\]:\s+(?P<url>.*)')
+re_linebreak = re.compile('\S  $')
 
 
 def rule(ruleid, ruletags=None):
@@ -41,6 +42,9 @@ def hard_tabs(filename, ln, line, ctx):
 
 @rule('trailing-whitespace', ruletags=['inline', 'code'])
 def trailing_whitespace(filename, ln, line, ctx):
+    if re_linebreak.search(line):
+        return
+
     if line.endswith(' '):
         raise RuleViolation(None, filename, ln, line)
 

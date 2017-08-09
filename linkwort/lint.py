@@ -69,7 +69,7 @@ class MarkdownLint(object):
 
             rulefunc(filename, ln, data, ctx)
 
-    def parse(self, src, filename='<unknown>'):
+    def parse(self, src, filename='<unknown>', fail_fast=False):
         violations = []
 
         if hasattr(src, 'read'):
@@ -84,7 +84,10 @@ class MarkdownLint(object):
         ctx = {}
         chunk = []
         fenced = None
+        ln = 0
         for ln, line in self.pipeline(src):
+            LOG.debug('[%03d]: %s', ln, line)
+
             if fenced:
                 if line == 'fenced':
                     fenced = False
@@ -114,13 +117,26 @@ class MarkdownLint(object):
             try:
                 self.run_rules('inline', filename, ln, line, ctx)
             except exceptions.RuleViolation as err:
+                if fail_fast:
+                    raise
                 violations.append(err)
 
             lastindent = indent
 
         try:
+            if chunk:
+                chunk_wrapped = ' '.join(chunk)
+                self.run_rules('chunk', filename, ln, chunk_wrapped, ctx)
+        except exceptions.RuleViolation as err:
+            if fail_fast:
+                raise
+            violations.append(err)
+
+        try:
             self.run_rules('atend', filename, ln, None, ctx)
         except exceptions.RuleViolation as err:
+            if fail_fast:
+                raise
             violations.append(err)
 
         return violations
