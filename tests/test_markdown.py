@@ -129,5 +129,5 @@ class TestMarkdown(unittest.TestCase):
         with pytest.raises(linkwort.exceptions.RuleViolation) as err:
             self.m.parse(text)
 
-        assert err.value.ruleid == 'missing-ref-link'
+        assert err.value.ruleid == 'undefined-reference'
 

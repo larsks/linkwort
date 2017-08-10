@@ -98,8 +98,8 @@ def collect_refs(filename, ln, line, ctx):
         ctx['references'].add(mo.group('ref').lower())
 
 
-@rule('missing-ref-link', ruletags=['atend'])
-def missing_ref_link(filename, ln, line, ctx):
+@rule('undefined-reference', ruletags=['atend'])
+def undefined_reference(filename, ln, line, ctx):
     '''raise an error if there are referenced links for which
     no definition was provided'''
     refs_wanted = ctx.get('reflinks', set())
