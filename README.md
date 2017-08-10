@@ -4,7 +4,7 @@ Linkwort is a Markdown linter.
 
 ## Features
 
-Linkwork will check Markdown files for the following issues:
+Linkwort will check Markdown files for the following issues:
 
 - Lines too long.  By default linkwork will raise an error for lines
   longer than 80 characters, but the maximum length is configurable.
@@ -27,9 +27,9 @@ the section with `<!-- lint:disable -->`/`<!-- lint:enable -->`.
 
 ## Usage
 
-    usage: linkwort [-h] [--fail-fast] [--lint-in-code] [--include-rules RULEID]
-                    [--exclude-rules RULEID] [--max-line-length MAX_LINE_LENGTH]
-                    [-v] [-d]
+    usage: linkwort [-h] [--list-rules] [--fail-fast] [--lint-in-code]
+                    [--include-rules RULEID] [--exclude-rules RULEID]
+                    [--max-line-length MAX_LINE_LENGTH] [-v] [-d]
                     [input [input ...]]
 
     positional arguments:
@@ -37,6 +37,7 @@ the section with `<!-- lint:disable -->`/`<!-- lint:enable -->`.
 
     optional arguments:
       -h, --help            show this help message and exit
+      --list-rules          List available linter rules and exit
 
     Linting options:
       --fail-fast, -F       Fail on first error
