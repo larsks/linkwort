@@ -4,6 +4,7 @@ import re
 from functools import wraps
 from linkwort.exceptions import RuleViolation
 
+re_codespan = re.compile('`[^`]+`')
 re_reflink = re.compile(r'\[(?P<label>[^]]+)\]\s*\[(?P<ref>[^]]*)\]')
 re_reference = re.compile('\s*\[(?P<ref>[^]]+)\]:\s+(?P<url>.*)')
 re_linebreak = re.compile('\S  $')
@@ -68,6 +69,15 @@ def trailing_whitespace(filename, ln, line, ctx):
       always_run=True)
 def collect_links(filename, ln, chunk, ctx):
     '''collect links referenced in the document'''
+
+    # first remove code spans from the chunk
+    while True:
+        mo = re_codespan.search(chunk)
+        if not mo:
+            break
+
+        chunk = chunk[:mo.start()] + chunk[mo.end():]
+
     reflinks = re_reflink.findall(chunk)
     for label, ref in reflinks:
         if 'reflinks' not in ctx:
