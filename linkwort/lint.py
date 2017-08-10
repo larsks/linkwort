@@ -3,7 +3,6 @@ from __future__ import print_function
 import itertools
 import logging
 import re
-import sys
 
 from linkwort import rules
 from linkwort import exceptions

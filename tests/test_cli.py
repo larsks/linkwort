@@ -3,7 +3,6 @@ import pytest
 import shutil
 import tempfile
 import unittest
-from cStringIO import StringIO
 
 import linkwort.main
 import linkwort.exceptions
