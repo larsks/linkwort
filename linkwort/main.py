@@ -6,12 +6,17 @@ import sys
 
 import linkwort.lint
 import linkwort.exceptions
+import linkwort.rules
 
 LOG = logging.getLogger(__name__)
 
 
 def parse_args(argv=sys.argv[1:]):
     p = argparse.ArgumentParser()
+
+    p.add_argument('--list-rules',
+                   action='store_true',
+                   help='List available linter rules and exit')
 
     g = p.add_argument_group('Linting options')
     g.add_argument('--fail-fast', '-F',
@@ -56,6 +61,13 @@ def parse_args(argv=sys.argv[1:]):
 def main(argv=sys.argv[1:]):
     args = parse_args(argv)
     logging.basicConfig(level=args.loglevel)
+
+    if args.list_rules:
+        print('\n'.join(rule['ruleid']
+                        for rule in linkwort.rules.rules
+                        if not rule.get('always_run')))
+
+        return
 
     m = linkwort.lint.MarkdownLint(
         fail_fast=args.fail_fast,
