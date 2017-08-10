@@ -1,75 +1,137 @@
 from __future__ import print_function
 
-import logging
-import sys
 import itertools
+import logging
+import re
+import sys
 
 from linkwort import rules
 from linkwort import exceptions
 
 LOG = logging.getLogger(__name__)
 
-
-def pp_stripper(src):
-    '''strip the trailing newline from all input lines'''
-    for ln, line in src:
-        if line.endswith('\n'):
-            line = line[:-1]
-
-        yield ln, line
+re_fenced = re.compile(r'^(`{3}|~{3})\w*$')
 
 
-def pp_blankline(src):
-    '''collapse multiple blank lines into a single blank line'''
-    last = None
+class Pipeline(object):
+    '''A simple generator pipeline, used to implement filtering
+    in the linter.'''
 
-    for ln, line in src:
-        if line == '':
-            if last == '':
-                continue
+    def __init__(self):
+        self.filters = []
 
-        yield ln, line
+    def add_filter(self, filter):
+        self.filters.append(filter)
 
-        last = line
+    def process(self, src):
+        pipeline = src
+        for filter in self.filters:
+            pipeline = filter(pipeline)
 
-
-def pp_marker(src):
-    '''remove text between lint:disable and lint:enable markers'''
-    ignoring = False
-
-    for ln, line in src:
-        if ignoring:
-            if line.startswith('<!-- lint:enable -->'):
-                ignoring = False
-                continue
-        else:
-            if line.startswith('<!-- lint:disable -->'):
-                ignoring = True
-                continue
-
-            yield ln, line
+        return pipeline
 
 
 class MarkdownLint(object):
-    def pipeline(self, src):
-        for ln, line in pp_blankline(
-                pp_marker(
-                    pp_stripper(
-                        enumerate(src)))):
+    def __init__(self,
+                 lint_in_code=False,
+                 fail_fast=False,
+                 include_rules=None,
+                 exclude_rules=None):
+
+        include_rules = set(include_rules if include_rules else [])
+        exclude_rules = set(exclude_rules if exclude_rules else [])
+
+        self.lint_in_code = lint_in_code
+        self.fail_fast = fail_fast
+        self.lastindent = 0
+        self.include_rules = include_rules
+        self.exclude_rules = exclude_rules
+
+        self.pipeline = Pipeline()
+
+        self.pipeline.add_filter(self.pp_stripper)
+        self.pipeline.add_filter(self.pp_marker)
+        if not lint_in_code:
+            self.pipeline.add_filter(self.pp_codeeater)
+        self.pipeline.add_filter(self.pp_blankline)
+
+    def pp_stripper(self, src):
+        '''strip the trailing newline from all input lines'''
+        for ln, line in src:
+            if line.endswith('\n'):
+                line = line[:-1]
+
+            yield ln, line
+
+    def pp_blankline(self, src):
+        '''collapse multiple blank lines into a single blank line'''
+        last = None
+
+        for ln, line in src:
+            if line == '':
+                if last == '':
+                    continue
+
+            yield ln, line
+
+            last = line
+
+    def pp_marker(self, src):
+        '''remove text between lint:disable and lint:enable markers'''
+        ignoring = False
+
+        for ln, line in src:
+            if ignoring:
+                if line.startswith('<!-- lint:enable -->'):
+                    ignoring = False
+                    continue
+            else:
+                if line.startswith('<!-- lint:disable -->'):
+                    ignoring = True
+                    continue
+
+                yield ln, line
+
+    def pp_codeeater(self, src):
+        '''this processor will filter out fenced and indented code blocks'''
+        fenced = None
+
+        for ln, line in src:
+            indent = sum(1 for _ in
+                         itertools.takewhile(lambda x: x == ' ', line))
+
+            if indent >= self.lastindent + 4:
+                continue
+
+            self.lastindent = indent
+
+            if fenced is not None:
+                if line == fenced:
+                    fenced = None
+                continue
+            else:
+                mo = re_fenced.match(line)
+                if mo:
+                    fenced = mo.group(1)
+                    continue
 
             yield ln, line
 
     def run_rules(self, tag, filename, ln, data, ctx):
-        for rule in dir(rules):
-            rulefunc = getattr(rules, rule)
-            if not hasattr(rulefunc, 'ruleid'):
-                continue
-            if tag not in getattr(rulefunc, 'ruletags', []):
+        for rule in rules.rules:
+            LOG.debug('rule: %s', rule)
+            if tag not in rule['ruletags']:
                 continue
 
-            rulefunc(filename, ln, data, ctx)
+            if self.include_rules and rule['ruleid'] not in self.include_rules:
+                continue
 
-    def parse(self, src, filename='<unknown>', fail_fast=False):
+            if rule['ruleid'] in self.exclude_rules:
+                continue
+
+            rule['rulefunc'](filename, ln, data, ctx)
+
+    def parse(self, src, filename='<unknown>'):
         violations = []
 
         if hasattr(src, 'read'):
@@ -80,62 +142,41 @@ class MarkdownLint(object):
             raise ValueError("don't know how to process "
                              "src of type %s" % type(src))
 
-        lastindent = 0
         ctx = {}
         chunk = []
-        fenced = None
-        ln = 0
-        for ln, line in self.pipeline(src):
-            LOG.debug('[%03d]: %s', ln, line)
 
-            if fenced:
-                if line == 'fenced':
-                    fenced = False
-                continue
-            else:
-                if line in ['```', '~~~']:
-                    fenced = True
-                    continue
+        # we need to initialize ln because it is possible for the
+        # following loop to execute zero times (e.g., for an empty file,
+        # or for a file completely bracketed by disable/enable markers.
+        ln = 0
+        for ln, line in self.pipeline.process(enumerate(src)):
+            LOG.debug('[%03d]: %s', ln, line)
 
             if line == '':
                 if chunk:
-                    chunk_wrapped = ' '.join(chunk)
-                    self.run_rules('chunk', filename, ln, chunk_wrapped, ctx)
+                    LOG.debug('running chunk rules')
+                    chunk_folded = ' '.join(chunk)
+                    self.run_rules('chunk', filename, ln, chunk_folded, ctx)
 
                 chunk = []
                 continue
 
             chunk.append(line)
 
-            indent = sum(1 for _ in
-                         itertools.takewhile(lambda x: x == ' ', line))
-
-            # skip code blocks
-            if indent >= (lastindent + 4):
-                continue
-
             try:
+                LOG.debug('running inline rules')
                 self.run_rules('inline', filename, ln, line, ctx)
             except exceptions.RuleViolation as err:
-                if fail_fast:
+                if self.fail_fast:
                     raise
                 violations.append(err)
 
-            lastindent = indent
-
+        chunk_folded = ' '.join(chunk)
         try:
-            if chunk:
-                chunk_wrapped = ' '.join(chunk)
-                self.run_rules('chunk', filename, ln, chunk_wrapped, ctx)
+            LOG.debug('running atend rules')
+            self.run_rules('atend', filename, ln, chunk_folded, ctx)
         except exceptions.RuleViolation as err:
-            if fail_fast:
-                raise
-            violations.append(err)
-
-        try:
-            self.run_rules('atend', filename, ln, None, ctx)
-        except exceptions.RuleViolation as err:
-            if fail_fast:
+            if self.fail_fast:
                 raise
             violations.append(err)
 
@@ -143,6 +184,7 @@ class MarkdownLint(object):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level='DEBUG')
     m = MarkdownLint()
     with open(sys.argv[1]) as fd:
         violations = m.parse(fd.read())
