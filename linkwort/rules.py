@@ -13,7 +13,7 @@ re_linebreak = re.compile('\S  $')
 rules = []
 
 
-def rule(ruleid, ruletags=None):
+def rule(ruleid, ruletags=None, always_run=False):
     '''register a rule function in the global rules list'''
     if ruletags is None:
         ruletags = ['inline']
@@ -30,7 +30,8 @@ def rule(ruleid, ruletags=None):
 
         rules.append({'ruleid': ruleid,
                       'ruletags': ruletags,
-                      'rulefunc': inner})
+                      'rulefunc': inner,
+                      'always_run': always_run})
         return inner
     return outer
 
@@ -63,7 +64,8 @@ def trailing_whitespace(filename, ln, line, ctx):
         raise RuleViolation(None, filename, ln, line)
 
 
-@rule('collect-links', ruletags=['chunk', 'atend'])
+@rule('collect-links', ruletags=['chunk', 'atend'],
+      always_run=True)
 def collect_links(filename, ln, chunk, ctx):
     '''collect links referenced in the document'''
     reflinks = re_reflink.findall(chunk)
@@ -75,7 +77,7 @@ def collect_links(filename, ln, chunk, ctx):
         ctx['reflinks'].add(ref.lower())
 
 
-@rule('collect-refs')
+@rule('collect-refs', always_run=True)
 def collect_refs(filename, ln, line, ctx):
     '''collect links defined in the document'''
     mo = re_reference.match(line)

@@ -119,16 +119,26 @@ class MarkdownLint(object):
 
     def run_rules(self, tag, filename, ln, data, ctx):
         for rule in rules.rules:
-            LOG.debug('rule: %s', rule)
             if tag not in rule['ruletags']:
+                LOG.debug('skipping rule [tag]: %s', rule['ruleid'])
                 continue
 
-            if self.include_rules and rule['ruleid'] not in self.include_rules:
+            if (
+                    self.include_rules
+                    and rule['ruleid'] not in self.include_rules
+                    and not rule['always_run']
+            ):
+                LOG.debug('skipping rule [include]: %s', rule['ruleid'])
                 continue
 
-            if rule['ruleid'] in self.exclude_rules:
+            if (
+                    rule['ruleid'] in self.exclude_rules
+                    and not rule['always_run']
+            ):
+                LOG.debug('skipping rule [exclude]: %s', rule['ruleid'])
                 continue
 
+            LOG.debug('running rule: %s', rule['ruleid'])
             rule['rulefunc'](filename, ln, data, ctx)
 
     def parse(self, src, filename='<unknown>'):
