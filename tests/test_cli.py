@@ -29,6 +29,12 @@ class TestMarkdown(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.workspace)
 
+    def test_missing_file(self):
+        ret = linkwort.main.main(
+            argv=['__does_not_exist__'])
+
+        assert ret == 1
+
     def test_good(self):
         ret = linkwort.main.main(
             argv=[os.path.join(self.workspace, 'simple.md')])

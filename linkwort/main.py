@@ -82,6 +82,11 @@ def main(argv=sys.argv[1:]):
                 for v in violations:
                     ret += 1
                     print('{}: {}...'.format(v, v.text[:40]))
+    except IOError as err:
+        LOG.error('failed to open %s: %s', filename, err)
+        ret = 1
+    except KeyboardInterrupt:
+        ret = 1
     except linkwort.exceptions.RuleViolation as v:
         ret += 1
         print('{}: {}...'.format(v, v.text[:40]))
