@@ -1,6 +1,8 @@
 import os
 import pytest
 import shutil
+import six
+import sys
 import tempfile
 import unittest
 
@@ -73,3 +75,13 @@ class TestMarkdown(unittest.TestCase):
                   os.path.join(self.workspace, 'codeblock.md')])
 
         assert ret == 1
+
+    def test_list_rules(self):
+        sys.stdout = six.StringIO()
+        rules = [rule['ruleid'] for rule in linkwort.rules.rules
+                 if not rule.get('always_run')]
+        ret = linkwort.main.main(
+            argv=['--list-rules'])
+
+        assert ret == None
+        assert sys.stdout.getvalue().strip() == '\n'.join(rules).strip()
