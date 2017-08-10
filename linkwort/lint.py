@@ -11,6 +11,7 @@ from linkwort import exceptions
 LOG = logging.getLogger(__name__)
 
 re_fenced = re.compile(r'^(`{3}|~{3})\w*$')
+default_max_line_length = 80
 
 
 class Pipeline(object):
@@ -36,7 +37,8 @@ class MarkdownLint(object):
                  lint_in_code=False,
                  fail_fast=False,
                  include_rules=None,
-                 exclude_rules=None):
+                 exclude_rules=None,
+                 max_line_length=default_max_line_length):
 
         include_rules = set(include_rules if include_rules else [])
         exclude_rules = set(exclude_rules if exclude_rules else [])
@@ -46,6 +48,7 @@ class MarkdownLint(object):
         self.lastindent = 0
         self.include_rules = include_rules
         self.exclude_rules = exclude_rules
+        self.max_line_length = max_line_length
 
         self.pipeline = Pipeline()
 
@@ -152,7 +155,9 @@ class MarkdownLint(object):
             raise ValueError("don't know how to process "
                              "src of type %s" % type(src))
 
-        ctx = {}
+        ctx = {
+            'max_line_length': self.max_line_length,
+        }
         chunk = []
 
         # we need to initialize ln because it is possible for the
@@ -191,13 +196,3 @@ class MarkdownLint(object):
             violations.append(err)
 
         return violations
-
-
-if __name__ == '__main__':
-    logging.basicConfig(level='DEBUG')
-    m = MarkdownLint()
-    with open(sys.argv[1]) as fd:
-        violations = m.parse(fd.read())
-
-    for violation in violations:
-        print('%s: %s' % (violation, violation.text))

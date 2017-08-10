@@ -40,7 +40,7 @@ def rule(ruleid, ruletags=None, always_run=False):
 def max_line_length(filename, ln, line, ctx):
     '''raise a RuleViolation if the given line is longer than
     80 characters'''
-    if len(line) > 80:
+    if len(line) > ctx.get('max_line_length', 80):
         raise RuleViolation(None, filename, ln, line)
 
 

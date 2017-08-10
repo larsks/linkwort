@@ -5,11 +5,12 @@ import logging
 import sys
 
 import linkwort.lint
+import linkwort.exceptions
 
 LOG = logging.getLogger(__name__)
 
 
-def parse_args():
+def parse_args(argv=sys.argv[1:]):
     p = argparse.ArgumentParser()
 
     g = p.add_argument_group('Linting options')
@@ -29,6 +30,9 @@ def parse_args():
                    metavar='RULEID',
                    default=[],
                    help='Do not run the named rules')
+    g.add_argument('--max-line-length', '-m',
+                   type=int,
+                   default=80)
 
     g = p.add_argument_group('Logging options')
     g.add_argument('-v', '--verbose',
@@ -46,35 +50,40 @@ def parse_args():
 
     p.set_defaults(loglevel='WARNING')
 
-    return p.parse_args()
+    return p.parse_args(argv)
 
 
-def main():
-    args = parse_args()
+def main(argv=sys.argv[1:]):
+    args = parse_args(argv)
     logging.basicConfig(level=args.loglevel)
 
     m = linkwort.lint.MarkdownLint(
         fail_fast=args.fail_fast,
         lint_in_code=args.lint_in_code,
         include_rules = args.include_rules,
-        exclude_rules = args.exclude_rules)
+        exclude_rules = args.exclude_rules,
+        max_line_length=args.max_line_length)
 
     ret = 0
-    for filename in args.input:
-        if filename == '-':
-            filename = '<stdin>'
+    try:
+        for filename in args.input:
+            if filename == '-':
+                filename = '<stdin>'
 
-        LOG.info('processing %s', filename)
+            LOG.info('processing %s', filename)
 
-        with (
-                sys.stdin if filename == '<stdin>'
-                else open(filename, 'r')
-        ) as fd:
+            with (
+                    sys.stdin if filename == '<stdin>'
+                    else open(filename, 'r')
+            ) as fd:
 
-            violations = m.parse(fd, filename=filename)
+                violations = m.parse(fd, filename=filename)
 
-            for v in violations:
-                ret += 1
-                print('{}: {}...'.format(v, v.text[:40]))
+                for v in violations:
+                    ret += 1
+                    print('{}: {}...'.format(v, v.text[:40]))
+    except linkwort.exceptions.RuleViolation as v:
+        ret += 1
+        print('{}: {}...'.format(v, v.text[:40]))
 
     return ret
