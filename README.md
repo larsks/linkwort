@@ -84,3 +84,10 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+## Build status
+
+<!-- lint:disable -->
+[![Build Status](https://travis-ci.org/larsks/linkwort.svg?branch=master)](https://travis-ci.org/larsks/linkwort)
+[![Coverage Status](https://coveralls.io/repos/github/larsks/linkwort/badge.svg)](https://coveralls.io/github/larsks/linkwort)
+<!-- lint:enable -->
